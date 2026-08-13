@@ -1,4 +1,12 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+﻿import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { API_BASE_URL } from "../constants/api";
+
+const SESSION_KEY = "inventory_session";
+
+type StoredSession = {
+  token: string | null;
+  user: User | null;
+};
 
 export type Product = {
   id: string;
@@ -29,6 +37,7 @@ type AppContextType = {
   authError: string | null;
   products: Product[];
   addProduct: (product: Omit<Product, "id">) => Promise<boolean>;
+  updateProduct: (id: string, product: Omit<Product, "id">) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   cart: CartItem[];
   addToCart: (productId: string) => void;
@@ -44,9 +53,6 @@ type AppContextType = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// ⬇️ แก้ตรงนี้ให้ตรงกับพอร์ตของคุณ (จากตอน SSH เข้าเซิร์ฟเวอร์)
-const API_BASE_URL = "http://119.59.102.161:3063/api";
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -56,13 +62,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // ฟังก์ชันกลางสำหรับยิง API ทุกจุด แนบ token อัตโนมัติถ้ามี
+  const persistSession = (nextUser: User | null, nextToken: string | null) => {
+    setUser(nextUser);
+    setToken(nextToken);
+
+    if (typeof window !== "undefined" && window.localStorage) {
+      const payload: StoredSession = { user: nextUser, token: nextToken };
+      if (nextUser && nextToken) {
+        window.localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+      } else {
+        window.localStorage.removeItem(SESSION_KEY);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) return;
+
+    try {
+      const raw = window.localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const session = JSON.parse(raw) as StoredSession;
+      if (session.user && session.token) {
+        setUser(session.user);
+        setToken(session.token);
+      }
+    } catch (error) {
+      console.warn("Unable to restore session:", error);
+    }
+  }, []);
+
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });
@@ -82,27 +117,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     image: row.image,
   });
 
-  // โหลดสินค้าตอนเปิดแอป (public, ไม่ต้อง login)
   useEffect(() => {
     apiCall("/products")
       .then((data) => setProducts(data.map(mapProduct)))
       .catch((err) => console.error("โหลดข้อมูลสินค้าไม่สำเร็จ:", err.message));
   }, []);
 
-  // โหลด cart/favorites/receipts ใหม่ทุกครั้งที่ login สำเร็จ
   useEffect(() => {
     if (!user || !token) return;
-    apiCall("/cart").then(setCart).catch((err) => console.error("โหลดตะกร้าไม่สำเร็จ:", err.message));
-    apiCall("/favorites").then(setFavorites).catch((err) => console.error("โหลดรายการโปรดไม่สำเร็จ:", err.message));
-    apiCall("/receipts").then(setReceipts).catch((err) => console.error("โหลดประวัติการสั่งซื้อไม่สำเร็จ:", err.message));
+    apiCall("/cart")
+      .then(setCart)
+      .catch((err) => console.error("โหลดตะกร้าไม่สำเร็จ:", err.message));
+    apiCall("/favorites")
+      .then(setFavorites)
+      .catch((err) => console.error("โหลดรายการโปรดไม่สำเร็จ:", err.message));
+    apiCall("/receipts")
+      .then(setReceipts)
+      .catch((err) => console.error("โหลดประวัติการสั่งซื้อไม่สำเร็จ:", err.message));
   }, [user, token]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     setAuthError(null);
     try {
       const data = await apiCall("/login", { method: "POST", body: JSON.stringify({ username, password }) });
-      setToken(data.token);
-      setUser({ username: data.user.username, email: data.user.email, role: data.user.role });
+      persistSession({ username: data.user.username, email: data.user.email, role: data.user.role }, data.token);
       return true;
     } catch (err: any) {
       setAuthError(err.message);
@@ -114,8 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     try {
       const data = await apiCall("/register", { method: "POST", body: JSON.stringify({ username, email, password }) });
-      setToken(data.token);
-      setUser({ username: data.user.username, email: data.user.email, role: data.user.role });
+      persistSession({ username: data.user.username, email: data.user.email, role: data.user.role }, data.token);
       return true;
     } catch (err: any) {
       setAuthError(err.message);
@@ -124,8 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
+    persistSession(null, null);
     setCart([]);
     setFavorites([]);
     setReceipts([]);
@@ -142,6 +178,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProduct = async (id: string, product: Omit<Product, "id">): Promise<boolean> => {
+    try {
+      await apiCall(`/products/${id}`, { method: "PUT", body: JSON.stringify(product) });
+      setProducts((prev) => prev.map((item) => (item.id === id ? { id, ...product } : item)));
+      return true;
+    } catch (err: any) {
+      console.error("แก้ไขสินค้าไม่สำเร็จ:", err.message);
+      return false;
+    }
+  };
+
   const deleteProduct = async (id: string): Promise<boolean> => {
     try {
       await apiCall(`/products/${id}`, { method: "DELETE" });
@@ -154,8 +201,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ฝั่งตะกร้า: อัปเดต state ทันที (optimistic) แล้วค่อยยิง API ตาม
   const addToCart = (productId: string) => {
+    if (!user || !token) {
+      console.warn("Login required before adding to cart");
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((c) => c.productId === productId);
       if (existing) return prev.map((c) => (c.productId === productId ? { ...c, quantity: c.quantity + 1 } : c));
@@ -167,6 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const removeFromCart = (productId: string) => {
+    if (!user || !token) return;
     setCart((prev) => prev.filter((c) => c.productId !== productId));
     apiCall(`/cart/${productId}`, { method: "DELETE" }).catch((err) =>
       console.error("ลบออกจากตะกร้าไม่สำเร็จ:", err.message)
@@ -174,6 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
+    if (!user || !token) return;
     if (quantity <= 0) {
       removeFromCart(productId);
       return;
@@ -191,7 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, 0);
 
   const checkout = async (): Promise<Receipt | null> => {
-    if (cart.length === 0) return null;
+    if (!user || !token || cart.length === 0) return null;
     try {
       const receipt: Receipt = await apiCall("/checkout", { method: "POST" });
       setReceipts((prev) => [receipt, ...prev]);
@@ -204,6 +257,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleFavorite = (productId: string) => {
+    if (!user || !token) {
+      console.warn("Login required before toggling favorite");
+      return;
+    }
+
     setFavorites((prev) => (prev.includes(productId) ? prev.filter((f) => f !== productId) : [...prev, productId]));
     apiCall(`/favorites/${productId}`, { method: "POST" }).catch((err) =>
       console.error("อัปเดตรายการโปรดไม่สำเร็จ:", err.message)
@@ -213,10 +271,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        user, login, logout, register, authError,
-        products, addProduct, deleteProduct,
-        cart, addToCart, removeFromCart, updateQuantity, cartTotal, cartCount, checkout, receipts,
-        favorites, toggleFavorite,
+        user,
+        login,
+        logout,
+        register,
+        authError,
+        products,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        cart,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        cartTotal,
+        cartCount,
+        checkout,
+        receipts,
+        favorites,
+        toggleFavorite,
       }}
     >
       {children}
@@ -229,3 +302,5 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
+
+

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useApp } from "../context/AppContext";
@@ -7,6 +8,7 @@ type RoleChoice = "admin" | "customer" | null;
 
 export default function Login() {
   const { user, login, register, logout, authError } = useApp();
+  const router = useRouter();
   const [roleChoice, setRoleChoice] = useState<RoleChoice>(null);
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
@@ -17,7 +19,15 @@ export default function Login() {
   const handleLogout = () => {
     Alert.alert("ออกจากระบบ", "คุณต้องการออกจากระบบใช่หรือไม่?", [
       { text: "ยกเลิก", style: "cancel" },
-      { text: "ออกจากระบบ", style: "destructive", onPress: () => { logout(); setRoleChoice(null); } },
+      {
+        text: "ออกจากระบบ",
+        style: "destructive",
+        onPress: () => {
+          logout();
+          setRoleChoice(null);
+          router.replace("/login");
+        },
+      },
     ]);
   };
 
@@ -102,21 +112,32 @@ export default function Login() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.form}>
+        <View style={styles.brandTopBar}>
+          <Text style={styles.brandName}>BRAND NAME.J</Text>
+          <View style={[styles.roleBadge, { backgroundColor: isAdminFlow ? "#bfa14a" : "#000" }]}>
+            <Ionicons name={isAdminFlow ? "shield-checkmark" : "person"} size={14} color="#fff" />
+            <Text style={styles.roleBadgeText}>{isAdminFlow ? "ผู้ดูแลระบบ" : "ลูกค้า"}</Text>
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.backRow} onPress={() => setRoleChoice(null)}>
           <Ionicons name="arrow-back" size={18} color="#555" />
           <Text style={styles.backText}>เปลี่ยนประเภทบัญชี</Text>
         </TouchableOpacity>
 
-        <View style={[styles.roleBadge, { backgroundColor: isAdminFlow ? "#bfa14a" : "#000" }]}>
-          <Ionicons name={isAdminFlow ? "shield-checkmark" : "person"} size={14} color="#fff" />
-          <Text style={styles.roleBadgeText}>{isAdminFlow ? "ผู้ดูแลระบบ" : "ลูกค้า"}</Text>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEyebrow}>Premium retail access</Text>
+          <Text style={styles.header}>
+            {mode === "login"
+              ? (isAdminFlow ? "เข้าสู่ระบบผู้ดูแลระบบ" : "เข้าสู่ระบบลูกค้า")
+              : "สมัครสมาชิก"}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            {isAdminFlow
+              ? "จัดการสินค้าและสต็อกอย่างมีประสิทธิภาพ"
+              : "เลือกซื้อสินค้าที่ตรงกับสไตล์คุณได้ทันที"}
+          </Text>
         </View>
-
-        <Text style={styles.header}>
-          {mode === "login"
-            ? (isAdminFlow ? "เข้าสู่ระบบผู้ดูแลระบบ" : "เข้าสู่ระบบลูกค้า")
-            : "สมัครสมาชิก"}
-        </Text>
 
         <Text style={styles.label}>ชื่อผู้ใช้</Text>
         <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="username" />
@@ -157,13 +178,18 @@ const styles = StyleSheet.create({
   roleCardTitle: { fontSize: 15, fontWeight: "700", color: "#222" },
   roleCardDesc: { fontSize: 12, color: "#999", marginTop: 2 },
 
-  // Back row + badge on the form screen
+  brandTopBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  brandName: { fontSize: 18, fontWeight: "800", letterSpacing: 1.2, color: "#111" },
+  heroCard: { backgroundColor: "#111", borderRadius: 20, padding: 18, marginBottom: 18 },
+  heroEyebrow: { color: "#d8bf6a", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, marginBottom: 8 },
+  heroSubtitle: { color: "#ddd", fontSize: 12, marginTop: 6 },
+
   backRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 16 },
   backText: { color: "#555", fontSize: 13, fontWeight: "600" },
   roleBadge: { flexDirection: "row", alignItems: "center", alignSelf: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, marginBottom: 14 },
   roleBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
 
-  header: { fontSize: 22, fontWeight: "700", marginBottom: 24, color: "#222", textAlign: "center" },
+  header: { fontSize: 22, fontWeight: "700", marginBottom: 0, color: "#fff", textAlign: "left" },
   label: { fontSize: 13, fontWeight: "600", color: "#555", marginBottom: 6, marginTop: 14 },
   input: { backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: "#eee", fontSize: 14 },
   submitButton: { backgroundColor: "#000", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 26 },
