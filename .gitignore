@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+.node_modules.previous/
+
+# Secrets
+.env
+.env.local
+*.env
+
+# Backend
+backend/.node_modules.previous/
+
+# Frontend / Expo
+frontend/.expo/
+frontend/dist/
+frontend/web-build/
+frontend/expo-env.d.ts
+*.log
+npm-debug.*
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
