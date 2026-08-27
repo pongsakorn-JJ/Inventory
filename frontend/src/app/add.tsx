@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ProductImage } from "../components/ProductImage";
 import { Colors, Radius, Spacing } from "../constants/brand";
-import { resolveProductImageSource } from "../constants/productImages";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 
@@ -17,7 +18,7 @@ export default function AddProduct() {
     price?: string;
     oldPrice?: string;
     description?: string;
-    image?: string;
+    imageUrl?: string;
     category?: string;
     location?: string;
     stockQuantity?: string;
@@ -47,36 +48,43 @@ export default function AddProduct() {
     setPrice(String(params.price ?? ""));
     setOldPrice(String(params.oldPrice ?? ""));
     setDescription(String(params.description ?? ""));
-    setImage(String(params.image ?? ""));
+    setImage(String(params.imageUrl ?? ""));
     setCategory(String(params.category ?? DEFAULT_CATEGORY));
     setLocation(String(params.location ?? ""));
     setStockQuantity(String(params.stockQuantity ?? "0"));
   }, [params.editId]);
 
-  const handlePickImage = () => {
+  const handlePickImage = async () => {
     if (Platform.OS !== "web") {
-      showToast("ฟังก์ชันนี้รองรับเฉพาะบนเว็บเท่านั้น หากต้องการใช้งานบนโหมดมือถือ กรอก URL รูปภาพแทนได้", "info");
-      return;
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showToast("ต้องอนุญาตให้เข้าถึงคลังรูปภาพก่อนอัปโหลด", "error");
+        return;
+      }
     }
 
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = async (event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      base64: true,
+      quality: 0.8,
+    });
 
-      setUploading(true);
-      const url = await uploadProductImage(file);
-      setUploading(false);
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset?.base64) return;
 
-      if (url) {
-        setImage(url);
-      } else {
-        showToast("อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่", "error");
-      }
-    };
-    input.click();
+    setUploading(true);
+    const url = await uploadProductImage({
+      base64: asset.base64,
+      mimeType: asset.mimeType || "image/jpeg",
+      name,
+    });
+    setUploading(false);
+
+    if (url) {
+      setImage(url);
+    } else {
+      showToast("อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่", "error");
+    }
   };
 
   const handleSubmit = async () => {
@@ -93,7 +101,7 @@ export default function AddProduct() {
       rating: 5.0,
       category: category.trim() || DEFAULT_CATEGORY,
       description: description.trim(),
-      image: image.trim(),
+      imageUrl: image.trim(),
       location: location.trim(),
       stockQuantity: Math.max(0, Number(stockQuantity) || 0),
     };
@@ -192,7 +200,7 @@ export default function AddProduct() {
 
         {image ? (
           <View style={styles.previewBox}>
-            <Image source={resolveProductImageSource(image)} style={styles.previewImage} resizeMode="contain" />
+            <ProductImage uri={image} imageStyle={styles.previewImage} />
           </View>
         ) : null}
 

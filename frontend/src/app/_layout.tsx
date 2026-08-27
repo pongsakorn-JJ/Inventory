@@ -88,13 +88,6 @@ function TabsNav() {
           tabBarIcon: ({ color, size }) => <Ionicons name={user ? "person-circle" : "log-in"} color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="github-products"
-        options={{
-          title: "GitHub JSON",
-          tabBarIcon: ({ color, size }) => <Ionicons name="logo-github" color={color} size={size} />,
-        }}
-      />
     </Tabs>
   );
 }

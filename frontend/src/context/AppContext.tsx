@@ -17,7 +17,7 @@ export type Product = {
   rating: number;
   category: string;
   description: string;
-  image: string;
+  imageUrl: string;
   location: string;
   stockQuantity: number;
 };
@@ -62,7 +62,7 @@ type AppContextType = {
   products: Product[];
   refreshProducts: (query?: string) => Promise<void>;
   addProduct: (product: Omit<Product, "id">) => Promise<boolean>;
-  uploadProductImage: (file: File) => Promise<string | null>;
+  uploadProductImage: (params: { base64: string; mimeType: string; name?: string }) => Promise<string | null>;
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   adjustStock: (id: string, delta: number) => Promise<boolean>;
@@ -157,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     rating: Number(row.rating),
     category: row.category,
     description: row.description ?? "",
-    image: row.image_url,
+    imageUrl: row.image_url,
     location: row.location ?? "",
     stockQuantity: row.total_stock != null ? Number(row.total_stock) : 0,
   });
@@ -288,23 +288,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     rating: product.rating,
     category: product.category,
     description: product.description || null,
-    image: product.image,
+    imageUrl: product.imageUrl,
     location: product.location || null,
     stockQuantity: product.stockQuantity,
   });
 
-  const uploadProductImage = async (file: File): Promise<string | null> => {
+  const uploadProductImage = async ({
+    base64,
+    mimeType,
+    name,
+  }: {
+    base64: string;
+    mimeType: string;
+    name?: string;
+  }): Promise<string | null> => {
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch(`${API_BASE_URL}/upload`, {
+      const data = await apiCall("/products/upload-image", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: formData,
+        body: JSON.stringify({ image: base64, mimeType, name }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
-      return data.url as string;
+      return data.imageUrl as string;
     } catch (err: any) {
       console.error("อัปโหลดรูปไม่สำเร็จ:", err.message);
       setLastError(err.message);

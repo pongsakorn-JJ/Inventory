@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { putFileToGithub, slugify, MIME_EXT_MAP } = require('./github');
 
 const app = express();
 const port = process.env.PORT || 3063;
@@ -185,6 +186,62 @@ app.post('/api/upload', authToken, adminOnly, (req, res) => {
 });
 
 // ========================================
+// UPLOAD: product image hosted on GitHub (admin only)
+// Body: { image: "data:image/jpeg;base64,..." , name?: "product name for the slug" }
+// or: { image: "<raw base64>", mimeType: "image/jpeg", name?: "..." }
+// ========================================
+const MAX_GITHUB_IMAGE_BYTES = 2 * 1024 * 1024;
+
+app.post('/api/products/upload-image', authToken, adminOnly, async (req, res) => {
+  try {
+    const { image, mimeType: bodyMimeType, name } = req.body;
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({ error: 'image (base64) is required' });
+    }
+
+    const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/);
+    const mimeType = dataUrlMatch ? dataUrlMatch[1] : bodyMimeType;
+    const base64Data = dataUrlMatch ? dataUrlMatch[2] : image;
+    const ext = mimeType && MIME_EXT_MAP[mimeType.toLowerCase()];
+    if (!ext) {
+      return res.status(400).json({ error: 'Only jpg, jpeg, png, or webp images are allowed' });
+    }
+
+    const buffer = Buffer.from(base64Data, 'base64');
+    if (buffer.length === 0) {
+      return res.status(400).json({ error: 'Empty image data' });
+    }
+    if (buffer.length > MAX_GITHUB_IMAGE_BYTES) {
+      return res.status(400).json({ error: 'Image must be 2MB or smaller' });
+    }
+
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO;
+    const branch = process.env.GITHUB_BRANCH || 'main';
+    if (!token || !repo) {
+      return res.status(500).json({ error: 'GitHub upload is not configured on the server' });
+    }
+
+    const filename = `${slugify(name || 'product')}-${Date.now()}.${ext}`;
+    const repoPath = `frontend/assets/images/products/${filename}`;
+
+    await putFileToGithub({
+      token,
+      repo,
+      branch,
+      filePath: repoPath,
+      contentBase64: buffer.toString('base64'),
+      message: `feat: add product image ${filename}`,
+    });
+
+    res.status(201).json({ imageUrl: `https://raw.githubusercontent.com/${repo}/${branch}/${repoPath}` });
+  } catch (e) {
+    console.error('Upload Image To GitHub Error:', e.message);
+    res.status(500).json({ error: 'Failed to upload image to GitHub' });
+  }
+});
+
+// ========================================
 // AUTH: Register
 // ========================================
 app.post('/api/register', async (req, res) => {
@@ -272,14 +329,14 @@ app.get('/api/products', async (req, res) => {
 // ========================================
 app.post('/api/products', authToken, adminOnly, async (req, res) => {
   try {
-    const { name, brand, price, oldPrice, rating, category, description, image, location, stockQuantity } = req.body;
-    if (!name || !brand || price == null || !category || !image) {
-      return res.status(400).json({ error: 'name, brand, price, category, image are required' });
+    const { name, brand, price, oldPrice, rating, category, description, imageUrl, location, stockQuantity } = req.body;
+    if (!name || !brand || price == null || !category || !imageUrl) {
+      return res.status(400).json({ error: 'name, brand, price, category, imageUrl are required' });
     }
 
     const [result] = await pool.query(
       'INSERT INTO products (name, brand, price, old_price, rating, category, description, image_url, location, total_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, image, location ?? null, Math.max(0, Number(stockQuantity) || 0)]
+      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, imageUrl, location ?? null, Math.max(0, Number(stockQuantity) || 0)]
     );
 
     scheduleGithubSync();
@@ -292,7 +349,7 @@ app.post('/api/products', authToken, adminOnly, async (req, res) => {
       rating: rating ?? 0,
       category,
       description: description ?? null,
-      image,
+      imageUrl,
       location: location ?? null,
       stockQuantity: Math.max(0, Number(stockQuantity) || 0),
     });
@@ -308,21 +365,21 @@ app.post('/api/products', authToken, adminOnly, async (req, res) => {
 app.put('/api/products/:id', authToken, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, brand, price, oldPrice, rating, category, description, image, location, stockQuantity } = req.body;
-    if (!name || !brand || price == null || !category || !image) {
-      return res.status(400).json({ error: 'name, brand, price, category, image are required' });
+    const { name, brand, price, oldPrice, rating, category, description, imageUrl, location, stockQuantity } = req.body;
+    if (!name || !brand || price == null || !category || !imageUrl) {
+      return res.status(400).json({ error: 'name, brand, price, category, imageUrl are required' });
     }
 
     const [result] = await pool.query(
       `UPDATE products
        SET name = ?, brand = ?, price = ?, old_price = ?, rating = ?, category = ?, description = ?, image_url = ?, location = ?, total_stock = ?
        WHERE id = ?`,
-      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, image, location ?? null, Math.max(0, Number(stockQuantity) || 0), id]
+      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, imageUrl, location ?? null, Math.max(0, Number(stockQuantity) || 0), id]
     );
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Product not found' });
     scheduleGithubSync();
-    res.json({ id, name, brand, price, oldPrice: oldPrice ?? null, rating: rating ?? 0, category, description: description ?? null, image, location, stockQuantity });
+    res.json({ id, name, brand, price, oldPrice: oldPrice ?? null, rating: rating ?? 0, category, description: description ?? null, imageUrl, location, stockQuantity });
   } catch (e) {
     console.error('Update Product Error:', e.message);
     res.status(500).json({ error: 'Failed to update product' });

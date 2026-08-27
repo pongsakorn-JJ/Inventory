@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ProductImage } from "../components/ProductImage";
 import { BRAND_NAME, CardShadow, Colors, Radius, Spacing, formatCurrency } from "../constants/brand";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
@@ -83,7 +84,7 @@ export default function Cart() {
           lines.map((line) => (
             <View key={line.productId} style={[styles.line, CardShadow]}>
               <View style={styles.thumbBox}>
-                <Image source={{ uri: line.product.image }} style={styles.thumb} resizeMode="contain" />
+                <ProductImage uri={line.product.imageUrl} imageStyle={styles.thumb} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.lineName} numberOfLines={1}>
