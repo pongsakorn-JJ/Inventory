@@ -9,6 +9,7 @@ node_modules/
 
 # Backend
 backend/.node_modules.previous/
+backend/uploads/
 
 # Frontend / Expo
 frontend/.expo/

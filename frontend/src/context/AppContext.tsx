@@ -16,6 +16,7 @@ export type Product = {
   oldPrice: number | null;
   rating: number;
   category: string;
+  description: string;
   image: string;
   location: string;
   stockQuantity: number;
@@ -61,6 +62,7 @@ type AppContextType = {
   products: Product[];
   refreshProducts: (query?: string) => Promise<void>;
   addProduct: (product: Omit<Product, "id">) => Promise<boolean>;
+  uploadProductImage: (file: File) => Promise<string | null>;
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   adjustStock: (id: string, delta: number) => Promise<boolean>;
@@ -154,9 +156,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     oldPrice: row.old_price != null ? Number(row.old_price) : null,
     rating: Number(row.rating),
     category: row.category,
-    image: row.image,
+    description: row.description ?? "",
+    image: row.image_url,
     location: row.location ?? "",
-    stockQuantity: row.stock_quantity != null ? Number(row.stock_quantity) : 0,
+    stockQuantity: row.total_stock != null ? Number(row.total_stock) : 0,
   });
 
   const refreshProducts = async (query?: string) => {
@@ -284,10 +287,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     oldPrice: product.oldPrice,
     rating: product.rating,
     category: product.category,
+    description: product.description || null,
     image: product.image,
     location: product.location || null,
     stockQuantity: product.stockQuantity,
   });
+
+  const uploadProductImage = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch(`${API_BASE_URL}/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+      return data.url as string;
+    } catch (err: any) {
+      console.error("อัปโหลดรูปไม่สำเร็จ:", err.message);
+      setLastError(err.message);
+      return null;
+    }
+  };
 
   const addProduct = async (product: Omit<Product, "id">): Promise<boolean> => {
     try {
@@ -427,6 +450,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         products,
         refreshProducts,
         addProduct,
+        uploadProductImage,
         updateProduct,
         deleteProduct,
         adjustStock,

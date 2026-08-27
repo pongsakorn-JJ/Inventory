@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Colors, Radius, Spacing } from "../constants/brand";
+import { resolveProductImageSource } from "../constants/productImages";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 
@@ -15,23 +16,26 @@ export default function AddProduct() {
     brand?: string;
     price?: string;
     oldPrice?: string;
+    description?: string;
     image?: string;
     category?: string;
     location?: string;
     stockQuantity?: string;
   }>();
-  const { user, products, addProduct, updateProduct } = useApp();
+  const { user, products, addProduct, updateProduct, uploadProductImage } = useApp();
   const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");
   const [oldPrice, setOldPrice] = useState("");
+  const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [location, setLocation] = useState("");
   const [stockQuantity, setStockQuantity] = useState("0");
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const editingId = params.editId ? String(params.editId) : null;
 
   const existingCategories = useMemo(() => Array.from(new Set(products.map((p) => p.category))).sort(), [products]);
@@ -42,6 +46,7 @@ export default function AddProduct() {
     setBrand(String(params.brand ?? ""));
     setPrice(String(params.price ?? ""));
     setOldPrice(String(params.oldPrice ?? ""));
+    setDescription(String(params.description ?? ""));
     setImage(String(params.image ?? ""));
     setCategory(String(params.category ?? DEFAULT_CATEGORY));
     setLocation(String(params.location ?? ""));
@@ -61,12 +66,15 @@ export default function AddProduct() {
       const file = (event.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = typeof reader.result === "string" ? reader.result : "";
-        setImage(result);
-      };
-      reader.readAsDataURL(file);
+      setUploading(true);
+      const url = await uploadProductImage(file);
+      setUploading(false);
+
+      if (url) {
+        setImage(url);
+      } else {
+        showToast("อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่", "error");
+      }
     };
     input.click();
   };
@@ -84,6 +92,7 @@ export default function AddProduct() {
       oldPrice: oldPrice.trim() ? Number(oldPrice) : null,
       rating: 5.0,
       category: category.trim() || DEFAULT_CATEGORY,
+      description: description.trim(),
       image: image.trim(),
       location: location.trim(),
       stockQuantity: Math.max(0, Number(stockQuantity) || 0),
@@ -162,17 +171,28 @@ export default function AddProduct() {
           </View>
         </View>
 
+        <Text style={styles.label}>รายละเอียดสินค้า (ไม่บังคับ)</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder="รายละเอียดเพิ่มเติมของสินค้า"
+          placeholderTextColor={Colors.inkFaint}
+          multiline
+          numberOfLines={3}
+        />
+
         <Text style={styles.label}>ภาพสินค้า</Text>
         <View style={styles.imageRow}>
-          <TextInput style={[styles.input, { flex: 1 }]} value={image} onChangeText={setImage} placeholder="https://... หรือ data:image/..." placeholderTextColor={Colors.inkFaint} autoCapitalize="none" />
-          <TouchableOpacity style={styles.pickImageButton} onPress={handlePickImage}>
-            <Ionicons name="image-outline" size={18} color={Colors.onDark} />
+          <TextInput style={[styles.input, { flex: 1 }]} value={image} onChangeText={setImage} placeholder="https://... หรืออัปโหลดรูปด้วยปุ่มด้านขวา" placeholderTextColor={Colors.inkFaint} autoCapitalize="none" />
+          <TouchableOpacity style={[styles.pickImageButton, uploading && styles.disabled]} onPress={handlePickImage} disabled={uploading}>
+            <Ionicons name={uploading ? "hourglass-outline" : "image-outline"} size={18} color={Colors.onDark} />
           </TouchableOpacity>
         </View>
 
         {image ? (
           <View style={styles.previewBox}>
-            <Image source={{ uri: image }} style={styles.previewImage} resizeMode="contain" />
+            <Image source={resolveProductImageSource(image)} style={styles.previewImage} resizeMode="contain" />
           </View>
         ) : null}
 
@@ -198,6 +218,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 20, fontWeight: "700", marginTop: 6, color: Colors.onDark },
   label: { fontSize: 13, fontWeight: "600", color: Colors.inkSoft, marginBottom: 6, marginTop: Spacing.md },
   input: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border, fontSize: 14, color: Colors.ink },
+  textArea: { minHeight: 80, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: Spacing.md },
   imageRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   pickImageButton: { backgroundColor: Colors.nav, width: 46, height: 46, borderRadius: Radius.md, justifyContent: "center", alignItems: "center" },

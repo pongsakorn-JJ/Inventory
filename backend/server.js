@@ -4,6 +4,9 @@ const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3063;
@@ -12,6 +15,25 @@ const LOW_STOCK_THRESHOLD = 5;
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+
+// ========================================
+// UPLOADS: product images, always saved as .jpg
+// ========================================
+const uploadsDir = path.join(__dirname, 'uploads', 'products');
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadsDir),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
 
 // ========================================
 // MySQL Connection
@@ -151,6 +173,18 @@ app.get('/api', (req, res) => {
 });
 
 // ========================================
+// UPLOAD: product image (admin only), saved as .jpg under /uploads/products
+// ========================================
+app.post('/api/upload', authToken, adminOnly, (req, res) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const url = `${req.protocol}://${req.get('host')}/uploads/products/${req.file.filename}`;
+    res.status(201).json({ url });
+  });
+});
+
+// ========================================
 // AUTH: Register
 // ========================================
 app.post('/api/register', async (req, res) => {
@@ -238,14 +272,14 @@ app.get('/api/products', async (req, res) => {
 // ========================================
 app.post('/api/products', authToken, adminOnly, async (req, res) => {
   try {
-    const { name, brand, price, oldPrice, rating, category, image, location, stockQuantity } = req.body;
+    const { name, brand, price, oldPrice, rating, category, description, image, location, stockQuantity } = req.body;
     if (!name || !brand || price == null || !category || !image) {
       return res.status(400).json({ error: 'name, brand, price, category, image are required' });
     }
 
     const [result] = await pool.query(
-      'INSERT INTO products (name, brand, price, old_price, rating, category, image, location, stock_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, brand, price, oldPrice ?? null, rating ?? 0, category, image, location ?? null, Math.max(0, Number(stockQuantity) || 0)]
+      'INSERT INTO products (name, brand, price, old_price, rating, category, description, image_url, location, total_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, image, location ?? null, Math.max(0, Number(stockQuantity) || 0)]
     );
 
     scheduleGithubSync();
@@ -257,6 +291,7 @@ app.post('/api/products', authToken, adminOnly, async (req, res) => {
       oldPrice: oldPrice ?? null,
       rating: rating ?? 0,
       category,
+      description: description ?? null,
       image,
       location: location ?? null,
       stockQuantity: Math.max(0, Number(stockQuantity) || 0),
@@ -273,21 +308,21 @@ app.post('/api/products', authToken, adminOnly, async (req, res) => {
 app.put('/api/products/:id', authToken, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, brand, price, oldPrice, rating, category, image, location, stockQuantity } = req.body;
+    const { name, brand, price, oldPrice, rating, category, description, image, location, stockQuantity } = req.body;
     if (!name || !brand || price == null || !category || !image) {
       return res.status(400).json({ error: 'name, brand, price, category, image are required' });
     }
 
     const [result] = await pool.query(
       `UPDATE products
-       SET name = ?, brand = ?, price = ?, old_price = ?, rating = ?, category = ?, image = ?, location = ?, stock_quantity = ?
+       SET name = ?, brand = ?, price = ?, old_price = ?, rating = ?, category = ?, description = ?, image_url = ?, location = ?, total_stock = ?
        WHERE id = ?`,
-      [name, brand, price, oldPrice ?? null, rating ?? 0, category, image, location ?? null, Math.max(0, Number(stockQuantity) || 0), id]
+      [name, brand, price, oldPrice ?? null, rating ?? 0, category, description ?? null, image, location ?? null, Math.max(0, Number(stockQuantity) || 0), id]
     );
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Product not found' });
     scheduleGithubSync();
-    res.json({ id, name, brand, price, oldPrice: oldPrice ?? null, rating: rating ?? 0, category, image, location, stockQuantity });
+    res.json({ id, name, brand, price, oldPrice: oldPrice ?? null, rating: rating ?? 0, category, description: description ?? null, image, location, stockQuantity });
   } catch (e) {
     console.error('Update Product Error:', e.message);
     res.status(500).json({ error: 'Failed to update product' });
@@ -321,11 +356,11 @@ app.patch('/api/products/:id/stock', authToken, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'delta must be a non-zero number' });
     }
 
-    const [rows] = await pool.query('SELECT stock_quantity FROM products WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT total_stock FROM products WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Product not found' });
 
-    const nextQuantity = Math.max(0, rows[0].stock_quantity + delta);
-    await pool.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [nextQuantity, id]);
+    const nextQuantity = Math.max(0, rows[0].total_stock + delta);
+    await pool.query('UPDATE products SET total_stock = ? WHERE id = ?', [nextQuantity, id]);
     scheduleGithubSync();
     res.json({ stockQuantity: nextQuantity });
   } catch (e) {
@@ -360,7 +395,7 @@ app.post('/api/sales', authToken, staffOnly, async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const [productRows] = await conn.query('SELECT id, name, price, stock_quantity FROM products WHERE id = ? FOR UPDATE', [productId]);
+    const [productRows] = await conn.query('SELECT id, name, price, total_stock FROM products WHERE id = ? FOR UPDATE', [productId]);
     if (productRows.length === 0) {
       await conn.rollback();
       conn.release();
@@ -368,14 +403,14 @@ app.post('/api/sales', authToken, staffOnly, async (req, res) => {
     }
 
     const product = productRows[0];
-    if (qty > product.stock_quantity) {
+    if (qty > product.total_stock) {
       await conn.rollback();
       conn.release();
-      return res.status(400).json({ error: `Insufficient stock, only ${product.stock_quantity} left` });
+      return res.status(400).json({ error: `Insufficient stock, only ${product.total_stock} left` });
     }
 
-    const nextQuantity = product.stock_quantity - qty;
-    await conn.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [nextQuantity, productId]);
+    const nextQuantity = product.total_stock - qty;
+    await conn.query('UPDATE products SET total_stock = ? WHERE id = ?', [nextQuantity, productId]);
 
     const total = product.price * qty;
     const [receiptResult] = await conn.query(
@@ -507,7 +542,7 @@ app.post('/api/checkout', authToken, async (req, res) => {
     await conn.beginTransaction();
 
     const [cartRows] = await conn.query(
-      `SELECT c.product_id, c.quantity, p.name, p.price, p.stock_quantity
+      `SELECT c.product_id, c.quantity, p.name, p.price, p.total_stock
        FROM cart_items c JOIN products p ON p.id = c.product_id
        WHERE c.user_id = ? FOR UPDATE`,
       [req.user.id]
@@ -520,10 +555,10 @@ app.post('/api/checkout', authToken, async (req, res) => {
     }
 
     for (const r of cartRows) {
-      if (r.quantity > r.stock_quantity) {
+      if (r.quantity > r.total_stock) {
         await conn.rollback();
         conn.release();
-        return res.status(400).json({ error: `สินค้า "${r.name}" มีไม่พอ (คงเหลือ ${r.stock_quantity})` });
+        return res.status(400).json({ error: `สินค้า "${r.name}" มีไม่พอ (คงเหลือ ${r.total_stock})` });
       }
     }
 
@@ -536,7 +571,7 @@ app.post('/api/checkout', authToken, async (req, res) => {
     const receiptId = receiptResult.insertId;
 
     for (const r of cartRows) {
-      await conn.query('UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?', [r.quantity, r.product_id]);
+      await conn.query('UPDATE products SET total_stock = total_stock - ? WHERE id = ?', [r.quantity, r.product_id]);
       await conn.query(
         'INSERT INTO receipt_items (receipt_id, name, price, quantity) VALUES (?, ?, ?, ?)',
         [receiptId, r.name, r.price, r.quantity]
@@ -597,22 +632,22 @@ app.get('/api/orders', authToken, async (req, res) => {
 // ========================================
 app.get('/api/dashboard', authToken, staffOnly, async (req, res) => {
   try {
-    const [products] = await pool.query('SELECT id, name, brand, price, category, location, stock_quantity FROM products');
+    const [products] = await pool.query('SELECT id, name, brand, price, category, location, total_stock FROM products');
 
     const totalProducts = products.length;
-    const totalStockUnits = products.reduce((sum, p) => sum + p.stock_quantity, 0);
-    const stockValue = products.reduce((sum, p) => sum + p.price * p.stock_quantity, 0);
+    const totalStockUnits = products.reduce((sum, p) => sum + p.total_stock, 0);
+    const stockValue = products.reduce((sum, p) => sum + p.price * p.total_stock, 0);
     const lowStockItems = products
-      .filter((p) => p.stock_quantity <= LOW_STOCK_THRESHOLD)
-      .sort((a, b) => a.stock_quantity - b.stock_quantity)
-      .map((p) => ({ id: String(p.id), name: p.name, brand: p.brand, location: p.location, stockQuantity: p.stock_quantity }));
+      .filter((p) => p.total_stock <= LOW_STOCK_THRESHOLD)
+      .sort((a, b) => a.total_stock - b.total_stock)
+      .map((p) => ({ id: String(p.id), name: p.name, brand: p.brand, location: p.location, stockQuantity: p.total_stock }));
 
     const byLocationMap = new Map();
     for (const p of products) {
       const key = p.location || 'ไม่ระบุตำแหน่ง';
       const entry = byLocationMap.get(key) || { location: key, productCount: 0, stockUnits: 0 };
       entry.productCount += 1;
-      entry.stockUnits += p.stock_quantity;
+      entry.stockUnits += p.total_stock;
       byLocationMap.set(key, entry);
     }
 

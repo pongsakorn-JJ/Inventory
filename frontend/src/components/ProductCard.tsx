@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CardShadow, Colors, LOW_STOCK_THRESHOLD, Radius, Spacing, formatCurrency } from "../constants/brand";
+import { resolveProductImageSource } from "../constants/productImages";
 import { Product } from "../context/AppContext";
 
 type Props = {
@@ -38,7 +39,7 @@ export function ProductCard({
   return (
     <View style={[styles.card, CardShadow]}>
       <View style={styles.imageBox}>
-        <Image source={{ uri: p.image }} style={styles.image} resizeMode="contain" />
+        <Image source={resolveProductImageSource(p.image)} style={styles.image} resizeMode="contain" />
         {(outOfStock || lowStock) && (
           <View style={[styles.stockTag, outOfStock ? styles.stockTagDanger : styles.stockTagWarning]}>
             <Text style={styles.stockTagText}>{outOfStock ? "หมดสต็อก" : `เหลือ ${p.stockQuantity}`}</Text>

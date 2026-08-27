@@ -66,6 +66,7 @@ export default function Products() {
         brand: product.brand,
         price: String(product.price),
         oldPrice: product.oldPrice == null ? "" : String(product.oldPrice),
+        description: product.description,
         image: product.image,
         category: product.category,
         location: product.location,

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Image, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { GITHUB_PRODUCTS_URL } from "../constants/api";
 import { BRAND_NAME, CardShadow, Colors, LOW_STOCK_THRESHOLD, Radius, Spacing, formatCurrency } from "../constants/brand";
+import { resolveProductImageSource } from "../constants/productImages";
 
 type GithubProduct = {
   id: string;
@@ -12,10 +13,13 @@ type GithubProduct = {
   old_price: number | null;
   rating: number;
   category: string;
+  description: string | null;
   location: string | null;
-  stock_quantity: number;
-  image: string;
+  total_stock: number;
+  product_status: string;
+  image_url: string;
   created_at: string;
+  updated_at: string;
 };
 
 export default function GithubProducts() {
@@ -77,12 +81,12 @@ export default function GithubProducts() {
         ) : (
           <View style={styles.grid}>
             {products.map((p) => {
-              const outOfStock = p.stock_quantity === 0;
-              const lowStock = !outOfStock && p.stock_quantity <= LOW_STOCK_THRESHOLD;
+              const outOfStock = p.total_stock === 0;
+              const lowStock = !outOfStock && p.total_stock <= LOW_STOCK_THRESHOLD;
               return (
                 <View key={p.id} style={[styles.card, CardShadow]}>
                   <View style={styles.imageBox}>
-                    <Image source={{ uri: p.image }} style={styles.image} resizeMode="contain" />
+                    <Image source={resolveProductImageSource(p.image_url)} style={styles.image} resizeMode="contain" />
                     <View style={[styles.badge, outOfStock ? styles.badgeDanger : lowStock ? styles.badgeWarning : styles.badgeActive]}>
                       <Text style={styles.badgeText}>{outOfStock ? "หมดสต็อก" : lowStock ? "ใกล้หมด" : "Active"}</Text>
                     </View>
@@ -93,7 +97,7 @@ export default function GithubProducts() {
                       {p.name}
                     </Text>
                     <Text style={styles.meta}>
-                      สต็อก {p.stock_quantity} ชิ้น • {p.category}
+                      สต็อก {p.total_stock} ชิ้น • {p.category}
                     </Text>
                     <Text style={styles.meta}>{p.location || "ไม่ระบุตำแหน่ง"}</Text>
                     <View style={styles.priceRow}>

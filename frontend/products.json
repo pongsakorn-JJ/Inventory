@@ -7,10 +7,13 @@
     "old_price": null,
     "rating": 4.2,
     "category": "Bags",
+    "description": null,
     "location": null,
-    "stock_quantity": 9,
-    "image": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRfS4CaIcZBGrZcreNUsTrm-pD_OFoEs5DreHH_lRIDEQO2tmFgra3Fn4NEyAh9EcKj1cRx4Pec03_-gDGTtX1XpEKT45XjSHNY0Y9BPFj4yEj_GyFw9ylKIdEmrpNeec6raQ4pFPqcjUQ&usqp=CAc",
-    "created_at": "2026-07-28 20:01:11"
+    "total_stock": 9,
+    "product_status": "active",
+    "image_url": "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRfS4CaIcZBGrZcreNUsTrm-pD_OFoEs5DreHH_lRIDEQO2tmFgra3Fn4NEyAh9EcKj1cRx4Pec03_-gDGTtX1XpEKT45XjSHNY0Y9BPFj4yEj_GyFw9ylKIdEmrpNeec6raQ4pFPqcjUQ&usqp=CAc",
+    "created_at": "2026-07-28 20:01:11",
+    "updated_at": "2026-07-28 20:01:11"
   },
   {
     "id": "3",
@@ -20,10 +23,13 @@
     "old_price": 1590.00,
     "rating": 4.7,
     "category": "Shoes",
+    "description": null,
     "location": null,
-    "stock_quantity": 8,
-    "image": "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcSkSSnO_r7pjTa-JoIsmTqw2MLZePBAHk2uq4uYjpoZB18mJktTUth-9IoJIhTj8WqYDBZ4hTBDPo5lWLjWpG_YCZP5KnfRCHpauUsD4PGf9a_uvYSzoftFatM_nIS4zSD41kov2A&usqp=CAc",
-    "created_at": "2026-07-28 20:01:11"
+    "total_stock": 8,
+    "product_status": "active",
+    "image_url": "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcSkSSnO_r7pjTa-JoIsmTqw2MLZePBAHk2uq4uYjpoZB18mJktTUth-9IoJIhTj8WqYDBZ4hTBDPo5lWLjWpG_YCZP5KnfRCHpauUsD4PGf9a_uvYSzoftFatM_nIS4zSD41kov2A&usqp=CAc",
+    "created_at": "2026-07-28 20:01:11",
+    "updated_at": "2026-07-28 20:01:11"
   },
   {
     "id": "5",
@@ -33,10 +39,13 @@
     "old_price": null,
     "rating": 4.8,
     "category": "Accessories",
+    "description": null,
     "location": null,
-    "stock_quantity": 15,
-    "image": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQOtfFFN-8FejevuWeljgf3OpsFxL65pdLs-ehMtXWJndIUTLjqfZ4DyDqCmCRDtzqbCkFb1X53XwKJvOKWDovmbb0xe52Tw9MrqHYQBDFAKeQApcC7d58ixx47y7I1I9NjalWBGlM-&usqp=CAc",
-    "created_at": "2026-07-28 20:01:11"
+    "total_stock": 15,
+    "product_status": "active",
+    "image_url": "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcQOtfFFN-8FejevuWeljgf3OpsFxL65pdLs-ehMtXWJndIUTLjqfZ4DyDqCmCRDtzqbCkFb1X53XwKJvOKWDovmbb0xe52Tw9MrqHYQBDFAKeQApcC7d58ixx47y7I1I9NjalWBGlM-&usqp=CAc",
+    "created_at": "2026-07-28 20:01:11",
+    "updated_at": "2026-07-28 20:01:11"
   },
   {
     "id": "6",
@@ -46,10 +55,13 @@
     "old_price": 890.00,
     "rating": 5.0,
     "category": "Accessories",
+    "description": null,
     "location": "k2",
-    "stock_quantity": 5,
-    "image": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcRIejNfgjOR8ybCRoRcmvZ0V38DrtAuJPbtaRKabkwSzLMUu3hS8zoQuNgooYxFOYrNBEVAYO4Jdq5lvZh59JdfcqcHoDJqNeK6vfpxiqwG2OJ1jhRtbSctT0wv-WPBHndNN6XnsTs&usqp=CAc",
-    "created_at": "2026-07-28 20:01:11"
+    "total_stock": 5,
+    "product_status": "active",
+    "image_url": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcRIejNfgjOR8ybCRoRcmvZ0V38DrtAuJPbtaRKabkwSzLMUu3hS8zoQuNgooYxFOYrNBEVAYO4Jdq5lvZh59JdfcqcHoDJqNeK6vfpxiqwG2OJ1jhRtbSctT0wv-WPBHndNN6XnsTs&usqp=CAc",
+    "created_at": "2026-07-28 20:01:11",
+    "updated_at": "2026-07-28 20:01:11"
   },
   {
     "id": "16",
@@ -59,9 +71,12 @@
     "old_price": 50000.00,
     "rating": 5.0,
     "category": "Bags",
+    "description": null,
     "location": null,
-    "stock_quantity": 7,
-    "image": "https://brandnamevoyage.com/wp-content/uploads/2024/09/Investing-in-Chanel-Luxury-Bags.jpg",
-    "created_at": "2026-08-14 16:22:27"
+    "total_stock": 7,
+    "product_status": "active",
+    "image_url": "https://brandnamevoyage.com/wp-content/uploads/2024/09/Investing-in-Chanel-Luxury-Bags.jpg",
+    "created_at": "2026-08-14 16:22:27",
+    "updated_at": "2026-08-14 16:22:27"
   }
 ]
