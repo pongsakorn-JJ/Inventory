@@ -1,9 +1,11 @@
-// Bundled sample/seed product images (for demo data only — admin-added products
-// still go through the real upload flow in AppContext.uploadProductImage).
+// Optional bundled sample/seed product images (for demo data only —
+// admin-added products go through the real GitHub upload flow in
+// AppContext.uploadProductImage, unrelated to this).
 //
-// To use: drop a .jpg into assets/images/products/, register it below with a
-// slug, then reference it from seed data as `local:<slug>`, e.g.
-// "local:mini-crossbody-bag" instead of a real image URL.
+// Currently unused — no assets/images/products/ folder exists in this
+// project. To use it: create that folder yourself, drop a .jpg into it,
+// register it below with a slug, then reference it from seed data as
+// `local:<slug>`, e.g. "local:mini-crossbody-bag" instead of a real URL.
 
 export const LOCAL_PRODUCT_IMAGES: Record<string, number> = {
   // "mini-crossbody-bag": require("../../assets/images/products/mini-crossbody-bag.jpg"),

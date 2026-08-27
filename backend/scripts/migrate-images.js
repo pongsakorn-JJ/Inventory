@@ -12,7 +12,7 @@
 require('dotenv').config();
 const path = require('path');
 const mysql = require('mysql2/promise');
-const { putFileToGithub, slugify, MIME_EXT_MAP } = require(path.join(__dirname, '..', 'github'));
+const { putFileToGithub, buildImageFilename, imageDir, MIME_EXT_MAP } = require(path.join(__dirname, '..', 'github'));
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -58,8 +58,11 @@ async function run() {
       const buffer = Buffer.from(await imgRes.arrayBuffer());
       if (buffer.length === 0) throw new Error('downloaded file is empty');
 
-      const filename = `${slugify(row.name)}-${Date.now()}.${ext}`;
-      const repoPath = `frontend/assets/images/products/${filename}`;
+      // Reuse the source URL's own file name when it has one, so migrated
+      // images look the same as freshly uploaded ones.
+      const urlName = decodeURIComponent(new URL(row.image_url).pathname.split('/').pop() || '');
+      const filename = buildImageFilename({ originalName: urlName, fallbackName: row.name, ext });
+      const repoPath = `${imageDir()}/${filename}`;
       const newUrl = `https://raw.githubusercontent.com/${repo}/${branch}/${repoPath}`;
 
       if (DRY_RUN) {
@@ -75,7 +78,7 @@ async function run() {
         branch,
         filePath: repoPath,
         contentBase64: buffer.toString('base64'),
-        message: `feat: add product image ${filename}`,
+        message: `Add product image ${filename}`,
       });
       await conn.query('UPDATE products SET image_url = ? WHERE id = ?', [newUrl, row.id]);
 

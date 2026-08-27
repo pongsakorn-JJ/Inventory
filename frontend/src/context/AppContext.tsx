@@ -62,7 +62,7 @@ type AppContextType = {
   products: Product[];
   refreshProducts: (query?: string) => Promise<void>;
   addProduct: (product: Omit<Product, "id">) => Promise<boolean>;
-  uploadProductImage: (params: { base64: string; mimeType: string; name?: string }) => Promise<string | null>;
+  uploadProductImage: (params: { base64: string; mimeType: string; name?: string; fileName?: string }) => Promise<string | null>;
   updateProduct: (id: string, product: Omit<Product, "id">) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   adjustStock: (id: string, delta: number) => Promise<boolean>;
@@ -297,15 +297,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     base64,
     mimeType,
     name,
+    fileName,
   }: {
     base64: string;
     mimeType: string;
     name?: string;
+    fileName?: string;
   }): Promise<string | null> => {
     try {
       const data = await apiCall("/products/upload-image", {
         method: "POST",
-        body: JSON.stringify({ image: base64, mimeType, name }),
+        body: JSON.stringify({ image: base64, mimeType, name, fileName }),
       });
       return data.imageUrl as string;
     } catch (err: any) {

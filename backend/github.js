@@ -63,4 +63,24 @@ const MIME_EXT_MAP = {
   'image/webp': 'webp',
 };
 
-module.exports = { putFileToGithub, slugify, MIME_EXT_MAP };
+// Builds "<timestamp>-<original file name>.<ext>" so an uploaded image keeps
+// the name the user picked, with a timestamp prefix that guarantees the path
+// is unique (GitHub would otherwise need the existing file's sha to overwrite).
+// Falls back to a slug of the product name when no original name is available.
+function buildImageFilename({ originalName, fallbackName, ext }) {
+  const base = String(originalName || '').replace(/\.[^.]+$/, '');
+  const safe = base
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 80);
+  const stem = safe || slugify(fallbackName || 'product');
+  return `${Date.now()}-${stem}.${ext}`;
+}
+
+// Repo-root folder that product images are committed into. Overridable so the
+// layout can change without touching code.
+function imageDir() {
+  return (process.env.GITHUB_IMAGE_DIR || 'product-images').replace(/^\/+|\/+$/g, '');
+}
+
+module.exports = { putFileToGithub, slugify, buildImageFilename, imageDir, MIME_EXT_MAP };

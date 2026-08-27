@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { putFileToGithub, slugify, MIME_EXT_MAP } = require('./github');
+const { putFileToGithub, buildImageFilename, imageDir, MIME_EXT_MAP } = require('./github');
 
 const app = express();
 const port = process.env.PORT || 3063;
@@ -194,7 +194,7 @@ const MAX_GITHUB_IMAGE_BYTES = 2 * 1024 * 1024;
 
 app.post('/api/products/upload-image', authToken, adminOnly, async (req, res) => {
   try {
-    const { image, mimeType: bodyMimeType, name } = req.body;
+    const { image, mimeType: bodyMimeType, name, fileName } = req.body;
     if (!image || typeof image !== 'string') {
       return res.status(400).json({ error: 'image (base64) is required' });
     }
@@ -222,8 +222,8 @@ app.post('/api/products/upload-image', authToken, adminOnly, async (req, res) =>
       return res.status(500).json({ error: 'GitHub upload is not configured on the server' });
     }
 
-    const filename = `${slugify(name || 'product')}-${Date.now()}.${ext}`;
-    const repoPath = `frontend/assets/images/products/${filename}`;
+    const filename = buildImageFilename({ originalName: fileName, fallbackName: name, ext });
+    const repoPath = `${imageDir()}/${filename}`;
 
     await putFileToGithub({
       token,
@@ -231,7 +231,7 @@ app.post('/api/products/upload-image', authToken, adminOnly, async (req, res) =>
       branch,
       filePath: repoPath,
       contentBase64: buffer.toString('base64'),
-      message: `feat: add product image ${filename}`,
+      message: `Add product image ${filename}`,
     });
 
     res.status(201).json({ imageUrl: `https://raw.githubusercontent.com/${repo}/${branch}/${repoPath}` });

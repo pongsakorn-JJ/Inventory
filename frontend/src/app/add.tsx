@@ -77,6 +77,7 @@ export default function AddProduct() {
       base64: asset.base64,
       mimeType: asset.mimeType || "image/jpeg",
       name,
+      fileName: asset.fileName ?? undefined,
     });
     setUploading(false);
 
