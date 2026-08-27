@@ -65,6 +65,85 @@ function staffOnly(req, res, next) {
 }
 
 // ========================================
+// GITHUB SYNC: push a products.json snapshot to GitHub whenever products change
+// ========================================
+const DB_TIMEZONE_OFFSET_MINUTES = 7 * 60; // matches pool's timezone: '+07:00'
+
+function formatMySQLDateTime(value) {
+  if (!value) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const shifted = new Date(date.getTime() + DB_TIMEZONE_OFFSET_MINUTES * 60000);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())} ${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}`;
+}
+
+async function syncProductsToGithub() {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return { synced: false, reason: 'GITHUB_TOKEN not configured' };
+
+  const repo = process.env.GITHUB_REPO;
+  const filePath = process.env.GITHUB_FILE;
+  const branch = process.env.GITHUB_BRANCH || 'main';
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+    const formatted = rows.map((row) => ({
+      ...row,
+      created_at: formatMySQLDateTime(row.created_at),
+      ...(row.updated_at !== undefined ? { updated_at: formatMySQLDateTime(row.updated_at) } : {}),
+    }));
+    const content = Buffer.from(JSON.stringify(formatted, null, 2), 'utf8').toString('base64');
+
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'inventory-app-sync',
+    };
+
+    let sha;
+    const getRes = await fetch(`${apiUrl}?ref=${branch}`, { headers });
+    if (getRes.ok) {
+      sha = (await getRes.json()).sha;
+    } else if (getRes.status !== 404) {
+      throw new Error(`GitHub GET failed (${getRes.status}): ${await getRes.text()}`);
+    }
+
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `chore: sync products.json (${formatted.length} items)`,
+        content,
+        branch,
+        ...(sha ? { sha } : {}),
+      }),
+    });
+
+    if (!putRes.ok) {
+      throw new Error(`GitHub PUT failed (${putRes.status}): ${await putRes.text()}`);
+    }
+
+    console.log(`Synced products.json to GitHub (${formatted.length} items)`);
+    return { synced: true, count: formatted.length };
+  } catch (err) {
+    console.error('GitHub Sync Error:', err.message);
+    return { synced: false, reason: err.message };
+  }
+}
+
+let githubSyncTimer = null;
+function scheduleGithubSync() {
+  if (!process.env.GITHUB_TOKEN) return;
+  if (githubSyncTimer) clearTimeout(githubSyncTimer);
+  githubSyncTimer = setTimeout(() => {
+    githubSyncTimer = null;
+    syncProductsToGithub();
+  }, 30000);
+}
+
+// ========================================
 // Health check
 // ========================================
 app.get('/api', (req, res) => {
@@ -169,6 +248,7 @@ app.post('/api/products', authToken, adminOnly, async (req, res) => {
       [name, brand, price, oldPrice ?? null, rating ?? 0, category, image, location ?? null, Math.max(0, Number(stockQuantity) || 0)]
     );
 
+    scheduleGithubSync();
     res.status(201).json({
       id: result.insertId,
       name,
@@ -206,6 +286,7 @@ app.put('/api/products/:id', authToken, adminOnly, async (req, res) => {
     );
 
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Product not found' });
+    scheduleGithubSync();
     res.json({ id, name, brand, price, oldPrice: oldPrice ?? null, rating: rating ?? 0, category, image, location, stockQuantity });
   } catch (e) {
     console.error('Update Product Error:', e.message);
@@ -221,6 +302,7 @@ app.delete('/api/products/:id', authToken, adminOnly, async (req, res) => {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM products WHERE id = ?', [id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Product not found' });
+    scheduleGithubSync();
     res.json({ success: true });
   } catch (e) {
     console.error('Delete Product Error:', e.message);
@@ -244,10 +326,23 @@ app.patch('/api/products/:id/stock', authToken, adminOnly, async (req, res) => {
 
     const nextQuantity = Math.max(0, rows[0].stock_quantity + delta);
     await pool.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [nextQuantity, id]);
+    scheduleGithubSync();
     res.json({ stockQuantity: nextQuantity });
   } catch (e) {
     console.error('Adjust Stock Error:', e.message);
     res.status(500).json({ error: 'Failed to adjust stock' });
+  }
+});
+
+// ========================================
+// PRODUCTS: Force an immediate sync of products.json to GitHub (admin only)
+// ========================================
+app.post('/api/products/sync-github', authToken, adminOnly, async (req, res) => {
+  const result = await syncProductsToGithub();
+  if (result.synced) {
+    res.json({ success: true, count: result.count });
+  } else {
+    res.status(500).json({ success: false, error: result.reason });
   }
 });
 

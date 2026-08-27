@@ -19,3 +19,6 @@ const getApiUrl = () => {
 
 export const API_URL = getApiUrl();
 export const API_BASE_URL = `${API_URL}/api`;
+
+export const GITHUB_PRODUCTS_URL =
+  "https://raw.githubusercontent.com/pongsakorn-JJ/Inventory/main/frontend/products.json";
