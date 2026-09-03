@@ -1,25 +1,5 @@
 [
   {
-    "id": 16,
-    "name": "nindam2",
-    "brand": "nindam",
-    "price": "500.00",
-    "old_price": "500.00",
-    "rating": "5.0",
-    "category": "Bags",
-    "description": null,
-    "location": "d5",
-    "stock_quantity": 0,
-    "total_stock": 6,
-    "product_status": "active",
-    "image_url": "https://brandnamevoyage.com/wp-content/uploads/2024/09/Investing-in-Chanel-Luxury-Bags.jpg",
-    "created_at": "2026-08-14 16:22:27",
-    "updated_at": "2026-09-03 10:30:23",
-    "badge_status": "Available",
-    "location_count": 0,
-    "location_text": null
-  },
-  {
     "id": 2,
     "name": "Mini Crossbody Bag",
     "brand": "LUXE",
