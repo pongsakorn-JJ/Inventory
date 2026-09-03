@@ -10,11 +10,11 @@
     "description": "ffffffff",
     "location": "s1",
     "stock_quantity": 0,
-    "total_stock": 2,
+    "total_stock": 3,
     "product_status": "active",
     "image_url": "https://img.th.my-best.com/product_images/477de0edde4fee28094453cfec95ae46.png?ixlib=rails-4.3.1&q=70&lossless=0&w=800&h=800&fit=clip&s=3fb7366f7dfa928677c371b59da9b082",
     "created_at": "2026-08-27 22:28:04",
-    "updated_at": "2026-08-27 22:28:04",
+    "updated_at": "2026-09-03 09:41:50",
     "badge_status": "Available",
     "location_count": 0,
     "location_text": null
