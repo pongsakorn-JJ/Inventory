@@ -1,25 +1,5 @@
 [
   {
-    "id": 25,
-    "name": "test11",
-    "brand": "test11",
-    "price": "400.00",
-    "old_price": "450.00",
-    "rating": "5.0",
-    "category": "Bags",
-    "description": "ffffffff",
-    "location": "s1",
-    "stock_quantity": 0,
-    "total_stock": 2,
-    "product_status": "active",
-    "image_url": "https://raw.githubusercontent.com/pongsakorn-JJ/Inventory/main/product-images/1787844489606-Guchi.jpg",
-    "created_at": "2026-08-27 22:28:13",
-    "updated_at": "2026-08-27 22:28:13",
-    "badge_status": "Available",
-    "location_count": 0,
-    "location_text": null
-  },
-  {
     "id": 24,
     "name": "test11",
     "brand": "test11",
